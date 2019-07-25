@@ -52,6 +52,116 @@ func testClientExtra(t *testing.T, when spec.G, it spec.S) {
 		RegisterTestingT(t)
 	})
 
+	when("GetClient()", func() {
+		when("the client returned from the server contains an autoapprove value that is a boolean", func() {
+		  response := `{
+      	"scope" : [ "clients.read", "clients.write" ],
+      	"client_id" : "00000000-0000-0000-0000-000000000001",
+      	"resource_ids" : [ "none" ],
+      	"authorized_grant_types" : [ "client_credentials" ],
+      	"redirect_uri" : [ "http://ant.path.wildcard/**/passback/*", "http://test1.com" ],
+      	"autoapprove" : true,
+      	"authorities" : [ "clients.read", "clients.write" ],
+      	"token_salt" : "1SztLL",
+      	"allowedproviders" : [ "uaa", "ldap", "my-saml-provider" ],
+      	"name" : "My Client Name",
+      	"lastModified" : 1502816030525,
+      	"required_user_groups" : [ ]
+      }`
+
+			var (
+				server  *httptest.Server
+				handler http.Handler
+				a       *uaa.API
+			)
+
+			it.Before(func() {
+				handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(response))
+				})
+
+				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					handler.ServeHTTP(w, req)
+				}))
+
+				c := &http.Client{Transport: http.DefaultTransport}
+				u, _ := url.Parse(server.URL)
+				a = &uaa.API{
+					TargetURL:             u,
+					AuthenticatedClient:   c,
+					UnauthenticatedClient: c,
+				}
+			})
+
+			it.After(func() {
+				if server != nil {
+					server.Close()
+				}
+			})
+
+			it("decodes the autoapprove value", func() {
+				client, err := a.GetClient("00000000-0000-0000-0000-000000000001")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(client.AutoApprove()).To(Equal([]string{"true"}))
+			})
+		})
+
+		when("the client returned from the server contains an autoapprove value that is a string", func() {
+		  response := `{
+      	"scope" : [ "clients.read", "clients.write" ],
+      	"client_id" : "00000000-0000-0000-0000-000000000001",
+      	"resource_ids" : [ "none" ],
+      	"authorized_grant_types" : [ "client_credentials" ],
+      	"redirect_uri" : [ "http://ant.path.wildcard/**/passback/*", "http://test1.com" ],
+      	"autoapprove" : "scope",
+      	"authorities" : [ "clients.read", "clients.write" ],
+      	"token_salt" : "1SztLL",
+      	"allowedproviders" : [ "uaa", "ldap", "my-saml-provider" ],
+      	"name" : "My Client Name",
+      	"lastModified" : 1502816030525,
+      	"required_user_groups" : [ ]
+      }`
+
+			var (
+				server  *httptest.Server
+				handler http.Handler
+				a       *uaa.API
+			)
+
+			it.Before(func() {
+				handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(response))
+				})
+
+				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					handler.ServeHTTP(w, req)
+				}))
+
+				c := &http.Client{Transport: http.DefaultTransport}
+				u, _ := url.Parse(server.URL)
+				a = &uaa.API{
+					TargetURL:             u,
+					AuthenticatedClient:   c,
+					UnauthenticatedClient: c,
+				}
+			})
+
+			it.After(func() {
+				if server != nil {
+					server.Close()
+				}
+			})
+
+			it("decodes the autoapprove value", func() {
+				client, err := a.GetClient("00000000-0000-0000-0000-000000000001")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(client.AutoApprove()).To(Equal([]string{"scope"}))
+			})
+		})
+	})
+
 	when("Client.Validate()", func() {
 		it("rejects empty grant types", func() {
 			client := uaa.Client{}
